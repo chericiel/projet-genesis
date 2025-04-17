@@ -5,10 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Connection;
 use Illuminate\Http\Request;
+use App\Models\ResetCode;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use App\Models\EmailVerification;
 use App\Mail\VerificationCodeMail;
+use App\Mail\ResetPasswordCodeMail;
+
 
 class AuthController extends Controller
 {
@@ -145,5 +149,79 @@ class AuthController extends Controller
             'message' => 'Déconnexion réussie.'
         ]);
     }
-}
+
+    // modifier le mot de passe
+    public function requestResetCode(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email'
+        ]);
+
+        // Vérifie que l'email est dans la table connections
+        $connection = Connection::where('email', $request->email)->first();
+
+        if (!$connection) {
+            return response()->json(['message' => 'Aucun utilisateur trouvé avec cet email.'], 404);
+        }
+
+        $user = $connection->user;
+
+        // Générer un code à 6 chiffres
+        $code = rand(100000, 999999);
+
+        // Stocker le code dans reset_codes
+        ResetCode::create([
+            'user_id' => $user->id,
+            'code' => $code,
+            'expires_at' => now()->addMinutes(10)
+        ]);
+
+        // Envoyer le code par email
+        Mail::to($request->email)->send(new ResetPasswordCodeMail($code));
+
+        return response()->json([
+            'message' => 'Un code de réinitialisation a été envoyé à votre adresse email.'
+        ]);
+    }
+
+    // Réinitialiser le mot de passe
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'code' => 'required',
+            'mot_de_passe' => 'required|string|min:6|confirmed' // nécessite mot_de_passe_confirmation
+        ]);
+
+        // Vérifier si l'email existe
+        $connection = Connection::where('email', $request->email)->first();
+        if (!$connection) {
+            return response()->json(['message' => 'Utilisateur non trouvé.'], 404);
+        }
+
+        $user = $connection->user;
+
+        // Vérifier le code
+        $resetCode = ResetCode::where('user_id', $user->id)
+            ->where('code', $request->code)
+            ->where('expires_at', '>', now())
+            ->latest()
+            ->first();
+
+        if (!$resetCode) {
+            return response()->json(['message' => 'Code invalide ou expiré.'], 403);
+        }
+
+        // Mettre à jour le mot de passe
+        $connection->mot_de_passe = bcrypt($request->mot_de_passe);
+        $connection->save();
+
+        // Supprimer le code utilisé
+        $resetCode->delete();
+
+        return response()->json([
+            'message' => 'Mot de passe réinitialisé avec succès.'
+        ]);
+    }
+}   
 

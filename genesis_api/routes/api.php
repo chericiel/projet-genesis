@@ -5,6 +5,8 @@ use Illuminate\Http\Request;
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\RendezVousController;
+use App\Http\Controllers\AgendaMedecinController;
+use App\Http\Controllers\ConsultationController;
 
 // Route de test protégée (auth:sanctum)
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
@@ -27,4 +29,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/rendez-vous', [RendezVousController::class, 'store']);
     Route::put('/rendez-vous/{id}', [RendezVousController::class, 'update']);
     Route::delete('/rendez-vous/{id}', [RendezVousController::class, 'destroy']);
+});
+// Modifier le mot de passe
+Route::post('/request-reset-code', [AuthController::class, 'requestResetCode']);
+
+// Réinitialiser le mot de passe
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+
+// Routes protégées du module agenda médecin
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/agenda', [AgendaMedecinController::class, 'store']);        // Ajouter un créneau
+    Route::get('/agenda', [AgendaMedecinController::class, 'index']);         // Lister mes créneaux
+    Route::delete('/agenda/{id}', [AgendaMedecinController::class, 'destroy']); // Supprimer un créneau
+});
+
+// Routes protégées du module consultations
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/consultations', [ConsultationController::class, 'store']);
 });

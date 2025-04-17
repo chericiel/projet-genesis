@@ -94,13 +94,27 @@ class RendezVousController extends Controller
     }
 
     // Annuler un rendez-vous
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
-        $rdv = RendezVous::findOrFail($id);
-        $rdv->delete();
+        $user = $request->user()->load(['patient', 'role']);
+
+        if (!$user->role || $user->role->libelle !== 'patient') {
+            return response()->json(['message' => 'Seuls les patients peuvent annuler un rendez-vous.'], 403);
+        }
+
+        $rdv = RendezVous::find($id);
+
+        if (!$rdv || $rdv->patient_id !== optional($user->patient)->id) {
+            return response()->json(['message' => 'Rendez-vous introuvable ou non autorisé.'], 404);
+        }
+
+        // Au lieu de le supprimer, on change le statut
+        $rdv->statut = 'annulé';
+        $rdv->save();
 
         return response()->json([
-            'message' => 'Rendez-vous annulé avec succès.'
+            'message' => 'Rendez-vous annulé avec succès.',
+            'rdv' => $rdv
         ]);
     }
 }
