@@ -22,15 +22,28 @@ class User extends Authenticatable
         'role_id'
     ];
 
-    // 🔁 Un utilisateur appartient à un rôle
+    //  Un utilisateur appartient à un rôle
     public function role()
     {
         return $this->belongsTo(Role::class);
     }
 
-    // 🔁 Un utilisateur a une seule ligne de connexion
+    //  Un utilisateur a une seule ligne de connexion
     public function connection()
     {
         return $this->hasOne(Connection::class);
     }
+
+    // Relation avec le patient
+    public function patient()
+    {
+        return $this->hasOne(\App\Models\Patient::class);
+    }
+
+    // Relation avec le medecin
+    public function medecin()
+    {
+        return $this->hasOne(\App\Models\Medecin::class);
+    }
+
 }

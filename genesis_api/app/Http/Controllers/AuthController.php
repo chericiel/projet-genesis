@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Hash;
 use App\Models\EmailVerification;
-
+use App\Mail\VerificationCodeMail;
 
 class AuthController extends Controller
 {
@@ -86,10 +86,9 @@ class AuthController extends Controller
         ]);
 
         // Envoi du mail (à configurer dans .env !)
-        Mail::raw("Votre code de connexion : $code", function ($message) use ($credentials) {
-            $message->to($credentials['email'])
-                    ->subject('Code de connexion à Genesis');
-        });
+        Mail::to($credentials['email'])->send(new VerificationCodeMail($code));
+
+
 
         return response()->json([
             'message' => 'Un code de vérification a été envoyé à votre adresse email.'
@@ -135,6 +134,15 @@ class AuthController extends Controller
             'message' => 'Connexion validée.',
             'token' => $token,
             'user' => $user
+        ]);
+    }
+
+    public function logout(Request $request)
+    {
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json([
+            'message' => 'Déconnexion réussie.'
         ]);
     }
 }
