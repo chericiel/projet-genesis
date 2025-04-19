@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\RendezVous;
 use App\Models\Patient;
 use App\Models\Medecin;
+use App\Models\Notification;
+use App\Models\User; 
 
 class RendezVousController extends Controller
 {
@@ -77,6 +79,15 @@ class RendezVousController extends Controller
         return response()->json([
             'message' => 'Rendez-vous planifié avec succès.',
             'rdv' => $rdv
+        ]);
+
+        // Notification au médecin
+        $medecinUser = User::find($request->medecin_id);
+
+        Notification::create([
+            'user_id' => $medecinUser->id,
+            'titre' => 'Nouveau rendez-vous reçu',
+            'message' => 'Vous avez un nouveau rendez-vous planifié avec le patient ' . $user->prenom . ' ' . $user->nom . '.',
         ]);
     }
 

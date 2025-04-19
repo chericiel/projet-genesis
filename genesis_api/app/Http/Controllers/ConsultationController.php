@@ -33,13 +33,27 @@ class ConsultationController extends Controller
             return response()->json(['message' => 'Rendez-vous non trouvé ou non autorisé.'], 404);
         }
 
-        // Créer la consultation
+        // Creer la consultation 
         $consultation = Consultation::create([
             'rendez_vous_id' => $rdv->id,
             'diagnostic' => $request->diagnostic,
             'note' => $request->note,
         ]);
+        
+        // Lier le document à la consultation
+        if ($request->hasFile('document')) {
+            $document = Document::create([
+                'user_id' => $user->id,
+                'nom_fichier' => $request->file('document')->getClientOriginalName(),
+                'chemin_fichier' => $request->file('document')->store('documents', 'public'),
+                'type' => 'consultation',
+                'consultation_id' => $consultation->id,
+            ]);
 
+            // Associer le document à la consultation
+            $consultation->documents()->save($document);
+        }
+        
         // Mettre à jour le statut du RDV
         $rdv->statut = 'terminé';
         $rdv->save();

@@ -46,4 +46,15 @@ class User extends Authenticatable
         return $this->hasOne(\App\Models\Medecin::class);
     }
 
+    // Relation avec les notifications
+    public function notifications()
+    {
+        return $this->hasMany(\App\Models\Notification::class, 'user_id');
+    }
+
+    // Relation avec les documents
+    public function documents()
+    {
+        return $this->hasMany(\App\Models\Document::class);
+    }
 }

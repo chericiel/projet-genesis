@@ -16,5 +16,11 @@ class Consultation extends Model
     {
         return $this->belongsTo(RendezVous::class);
     }
+
+    // Relation avec la table documents
+    public function documents()
+    {
+        return $this->hasMany(Document::class);
+    }
 }
 
