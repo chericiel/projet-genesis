@@ -53,4 +53,19 @@ class HistoriqueController extends Controller
             'consultation' => $consultation
         ]);
     }
+
+    // Liste les consultations effectué par le medecin
+    public function medecinIndex(Request $request)
+    {
+        $user = $request->user()->load('medecin');
+
+        $consultations = \App\Models\Consultation::whereHas('rendezVous', function ($q) use ($user) {
+            $q->where('medecin_id', $user->medecin->id);
+        })->with('rendezVous.patient.user')->latest()->get();
+
+        return response()->json([
+            'message' => 'Historique des consultations effectuées',
+            'consultations' => $consultations
+        ]);
+    }
 }

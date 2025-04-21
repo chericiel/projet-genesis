@@ -73,21 +73,22 @@ class RendezVousController extends Controller
             'medecin_id' => $request->medecin_id,
             'date_rdv' => $request->date_rdv,
             'heure_rdv' => $request->heure_rdv,
-            'statut' => 'planifié'
-        ]);
-
-        return response()->json([
-            'message' => 'Rendez-vous planifié avec succès.',
-            'rdv' => $rdv
+            'statut' => 'en attente'
         ]);
 
         // Notification au médecin
-        $medecinUser = User::find($request->medecin_id);
+        $medecin = \App\Models\Medecin::with('user')->find($request->medecin_id);
+        $medecinUser = $medecin?->user;
 
         Notification::create([
             'user_id' => $medecinUser->id,
             'titre' => 'Nouveau rendez-vous reçu',
             'message' => 'Vous avez un nouveau rendez-vous planifié avec le patient ' . $user->prenom . ' ' . $user->nom . '.',
+        ]);
+
+        return response()->json([
+            'message' => 'Rendez-vous planifié avec succès.',
+            'rdv' => $rdv
         ]);
     }
 
@@ -103,6 +104,62 @@ class RendezVousController extends Controller
             'rdv' => $rdv
         ]);
     }
+
+    // 🔍 Lister les rendez-vous "en attente" du médecin connecté
+    public function enAttente(Request $request)
+    {
+        $user = $request->user()->load('medecin', 'role');
+
+        if (!$user->medecin || $user->role->libelle !== 'medecin') {
+            return response()->json(['message' => 'Seuls les médecins peuvent voir leurs rendez-vous.'], 403);
+        }
+
+        $rdvs = RendezVous::with('patient.user')
+            ->where('medecin_id', $user->medecin->id)
+            ->where('statut', 'en attente')
+            ->orderBy('date_rdv')
+            ->get();
+
+        return response()->json([
+            'message' => 'Rendez-vous en attente.',
+            'rendez_vous' => $rdvs
+        ]);
+    }
+
+
+    // Valider un rendez-vous par le médecin
+    public function valider(Request $request, $id)
+    {
+        $user = $request->user()->load('medecin', 'role');
+
+        if ($user->role->libelle !== 'medecin') {
+            return response()->json(['message' => 'Seuls les médecins peuvent valider un rendez-vous.'], 403);
+        }
+
+        $rdv = RendezVous::with('patient.user')->where('id', $id)
+            ->where('medecin_id', $user->medecin->id)
+            ->first();
+
+        if (!$rdv) {
+            return response()->json(['message' => 'Rendez-vous introuvable ou non autorisé.'], 404);
+        }
+
+        $rdv->statut = 'planifié';
+        $rdv->save();
+
+        // 🔔 Notifier le patient
+        Notification::create([
+            'user_id' => $rdv->patient->user->id,
+            'titre' => 'Rendez-vous confirmé',
+            'message' => 'Votre rendez-vous avec le médecin le ' . $rdv->date_rdv . ' à ' . $rdv->heure_rdv . ' a été confirmé.'
+        ]);
+
+        return response()->json([
+            'message' => 'Rendez-vous validé avec succès.',
+            'rdv' => $rdv
+        ]);
+    }
+
 
     // Annuler un rendez-vous
     public function destroy(Request $request, $id)
@@ -126,6 +183,43 @@ class RendezVousController extends Controller
         return response()->json([
             'message' => 'Rendez-vous annulé avec succès.',
             'rdv' => $rdv
+        ]);
+    }
+
+    // Annuler un rendez-vous (médecin)
+    public function annulerParMedecin(Request $request, $id)
+    {
+        $user = $request->user()->load(['medecin', 'role']);
+
+        if (!$user->medecin || $user->role->libelle !== 'medecin') {
+            return response()->json(['message' => 'Seuls les médecins peuvent annuler un rendez-vous.'], 403);
+        }
+
+        $rdv = RendezVous::where('id', $id)
+            ->where('medecin_id', $user->medecin->id)
+            ->first();
+
+        if (!$rdv) {
+            return response()->json(['message' => 'Rendez-vous introuvable ou non autorisé.'], 404);
+        }
+
+        $rdv->statut = 'annulé';
+        $rdv->save();
+
+        // 🔔 Notifier le patient que le médecin a annulé
+        $rdv->load('patient.user');
+        $patientUser = $rdv->patient->user;
+
+        Notification::create([
+            'user_id' => $patientUser->id,
+            'titre' => 'Rendez-vous annulé',
+            'message' => 'Votre rendez-vous prévu le ' . $rdv->date_rdv . ' à ' . $rdv->heure_rdv . ' a été annulé par le médecin.'
+        ]);
+
+
+        return response()->json([
+            'message' => 'Rendez-vous annulé par le médecin.',
+            'rendez_vous' => $rdv
         ]);
     }
 }

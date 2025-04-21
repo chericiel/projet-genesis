@@ -23,7 +23,7 @@ return new class extends Migration
             $table->time('heure_rdv');
     
             // Statut du rendez-vous
-            $table->enum('statut', ['planifié', 'annulé', 'terminé'])->default('planifié');
+            $table->enum('statut', ['en attente', 'planifié', 'annulé', 'terminé'])->default('en attente');
     
             $table->timestamps();
         });

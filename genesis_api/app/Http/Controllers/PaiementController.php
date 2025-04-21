@@ -9,7 +9,7 @@ class PaiementController extends Controller
 {
     public function store(Request $request)
     {
-        $user = $request->user();
+        $user = $request->user()->load('patient');
 
         // Validation des données envoyées dans la requete
         $validated = $request->validate([
@@ -21,10 +21,10 @@ class PaiementController extends Controller
         ]);
 
         // Récupération de la consultation associée à l'ID
-        $consultation = Consultation::find($validated['consultation_id']);
+        $consultation = Consultation::with('rendezVous')->find($validated['consultation_id']);
 
         // Vérification que le paiement est effectué par le patient associé à la consultation
-        if ($consultation->rendezVous->patient_id !== $user->id) {
+        if (!$user->patient || $consultation->rendezVous->patient_id !== $user->patient->id) {
             return response()->json(['message' => 'Paiement non autorisé.'], 403);
         }
 
@@ -45,17 +45,46 @@ class PaiementController extends Controller
     }
 
     public function index(Request $request)
-    {   
-        // Vérification que l'utilisateur est authentifié
-        $user = $request->user();
+    {
+        $user = $request->user()->load(['role', 'patient', 'medecin']);
+        $role = $user->role->libelle;
 
-        // Récupération des paiements associés aux consultations du patient
-        $paiements = Paiement::whereHas('consultation.rendezVous', function ($q) use ($user) {
-            $q->where('patient_id', $user->id);
-        })->get();
+        //  Si ADMIN → voir tous les paiements
+        if ($role === 'administrateur') {
+            $paiements = \App\Models\Paiement::with('consultation.rendezVous.patient.user')->get();
 
-        // Retourne tous les paiements
-        return response()->json($paiements);
+            return response()->json([
+                'message' => 'Liste complète des paiements (admin)',
+                'paiements' => $paiements
+            ]);
+        }
+
+        //  Si PATIENT → voir ses paiements
+        if ($role === 'patient' && $user->patient) {
+            $paiements = \App\Models\Paiement::whereHas('consultation.rendezVous', function ($query) use ($user) {
+                $query->where('patient_id', $user->patient->id);
+            })->with('consultation.rendezVous.medecin.user')->get();
+
+            return response()->json([
+                'message' => 'Liste des paiements du patient',
+                'paiements' => $paiements
+            ]);
+        }
+
+        //  Si MEDECIN → voir les paiements liés à ses consultations
+        if ($role === 'medecin' && $user->medecin) {
+            $paiements = \App\Models\Paiement::whereHas('consultation.rendezVous', function ($query) use ($user) {
+                $query->where('medecin_id', $user->medecin->id);
+            })->with('consultation.rendezVous.patient.user')->get();
+
+            return response()->json([
+                'message' => 'Liste des paiements des consultations du médecin',
+                'paiements' => $paiements
+            ]);
+        }
+
+        // Accès non autorisé
+        return response()->json(['message' => 'Rôle non autorisé pour afficher les paiements.'], 403);
     }
 }
 

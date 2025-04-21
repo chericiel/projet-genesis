@@ -21,6 +21,8 @@ class ConsultationController extends Controller
         $request->validate([
             'rendez_vous_id' => 'required|exists:rendez_vous,id',
             'diagnostic' => 'required|string',
+            'traitements' => 'nullable|string',
+            'observations' => 'nullable|string',
             'note' => 'nullable|string'
         ]);
 
@@ -37,6 +39,8 @@ class ConsultationController extends Controller
         $consultation = Consultation::create([
             'rendez_vous_id' => $rdv->id,
             'diagnostic' => $request->diagnostic,
+            'traitements' => $request->traitements,
+            'observations' => $request->observations,
             'note' => $request->note,
         ]);
         
