@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 
@@ -131,10 +132,10 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware(['auth:sanctum', 'can:admin'])->prefix('admin')->group(function () {
 
     // Dashboard
-    Route::get('/', [DashboardController::class,'summary']);
-    Route::get('/users', [DashboardController::class,'usersStats']);
-    Route::get('/rendez-vous', [DashboardController::class,'rdvStats']);
-    Route::get('/paiements', [DashboardController::class,'paiementsStats']);
+    Route::get('/dashboard', [DashboardController::class,'summary']);
+    Route::get('dashboard/users', [DashboardController::class,'usersStats']);
+    Route::get('dashboard/rendez-vous', [DashboardController::class,'rdvStats']);
+    Route::get('dashboard/paiements', [DashboardController::class,'paiementsStats']);
 
     // 👥 Utilisateurs
     Route::get('/users', [AdminController::class, 'indexUsers']);
